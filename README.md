@@ -1,23 +1,58 @@
-# Webcam Light Environment Classifier 📸💡
+# Clasificación de Iluminación Ambiental con Computer Vision
 
-Este proyecto es parte del curso de Machine Learning de la Maestría. El objetivo es crear un **dataset supervisado propio** utilizando hardware común (webcam de laptop) actuando como un sensor fotométrico para clasificar entornos lumínicos.
+Este proyecto implementa un sistema de clasificación de fuentes de luz (Natural, LED, Pantalla) utilizando una webcam estándar como sensor de luz matricial. El objetivo es mejorar algoritmos de balance de blancos y detectar entornos de trabajo nocivos (exceso de luz azul).
 
-## 🎯 Objetivo
-Clasificar el entorno del usuario basándose en las propiedades de la luz ambiental sin utilizar reconocimiento de objetos (Computer Vision profunda), sino mediante **Ingeniería de Características (Feature Engineering)** estadística sobre los canales de color.
+## Estructura
 
-## 📂 Estructura del Dataset
-El dataset se genera automáticamente mediante el script `data_collector.py`. No se guardan imágenes (respetando la privacidad y reduciendo el peso), sino un vector de características extraído de cada frame:
+- **Recopilación de datos:**  
+  Captura imágenes y extrae características con la webcam.  
+  Ver instrucciones en [`README_RECOPILACION.md`](./README_RECOPILACION.md).
 
-| Feature | Descripción | Racional Teórico |
-| :--- | :--- | :--- |
-| `mean_r` | Promedio Canal Rojo | Detecta luces cálidas (incandescentes) o atardeceres. |
-| `mean_g` | Promedio Canal Verde | Ayuda a balancear la detección de luz fluorescente. |
-| `mean_b` | Promedio Canal Azul | Detecta luz fría (pantallas, luz día nublado). |
-| `brightness_mean` | Promedio Escala de Grises | Intensidad total de luz (Lux aproximado). |
-| `brightness_std` | Desviación Estándar (Grises) | Mide el contraste. Una luz directa genera sombras duras (alto std), luz difusa genera sombras suaves (bajo std). |
+- **Procesamiento y entrenamiento:**  
+  Limpieza, transformación, ingeniería de features, entrenamiento y análisis de modelos.  
+  Ver instrucciones en [`README_PROCESAMIENTO.md`](./README_PROCESAMIENTO.md).
 
-## 🚀 Instalación y Uso
+## Requisitos
 
-1. **Instalar dependencias:**
+- Python 3.8+
+- Instala dependencias:
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+## Flujo recomendado
+
+1. Recopila datos usando la webcam.
+2. Procesa los datos y entrena modelos.
+3. Analiza los resultados y compara modelos.
+
+Consulta los README específicos para cada etapa.
+
+## 🚀 Instalación
+
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/vctr-mj/webcam-light-sensor
+   cd webcam-light-sensor
+   ```
+
+2. Crea un entorno virtual:
+   ```bash
+   python -m venv .venv
+   ```
+
+3. Activa el entorno virtual:
+
+   - En Windows:
+     ```bash
+     .venv\Scripts\activate
+     ```
+   - En Linux/Mac:
+     ```bash
+     source .venv/bin/activate
+     ```
+
+4. Instala las dependencias:
    ```bash
    pip install -r requirements.txt
+   ```
