@@ -31,6 +31,8 @@ venv.bak/
 # Ignoramos la carpeta datasets completa para no saturar GitHub con miles de fotos
 datasets/*
 datasets_compartido/*
+!datasets/*.csv
+!datasets_compartido/*.csv
 !datasets/.gitkeep
 !datasets_compartido/.gitkeep
 
