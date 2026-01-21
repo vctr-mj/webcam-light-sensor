@@ -17,7 +17,7 @@ def transformar_datos(ruta_csv):
     return df
 
 if __name__ == "__main__":
-    ruta = "../datasets/DATASET_LIMPIO.csv"
+    ruta = "./datasets/DATASET_LIMPIO.csv"
     df_trans = transformar_datos(ruta)
-    df_trans.to_csv("../datasets/DATASET_TRANSFORMADO.csv", index=False)
+    df_trans.to_csv("./datasets/DATASET_TRANSFORMADO.csv", index=False)
     print("✅ Datos transformados y normalizados guardados en DATASET_TRANSFORMADO.csv")

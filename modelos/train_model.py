@@ -19,8 +19,8 @@ def entrenar_modelos(ruta_train):
 
     for nombre, modelo in modelos.items():
         modelo.fit(X, y)
-        joblib.dump(modelo, f"../modelos/modelo_{nombre}.pkl")
+        joblib.dump(modelo, f"./modelos/modelo_{nombre}.pkl")
         print(f"✅ Modelo {nombre} guardado.")
 
 if __name__ == "__main__":
-    entrenar_modelos("../datasets/train.csv")
+    entrenar_modelos("./datasets/train.csv")

@@ -12,7 +12,7 @@ def cargar_y_limpiar_csv(ruta_csv):
     return df
 
 if __name__ == "__main__":
-    ruta = "../datasets/DATASET_MAESTRO_COMPLETO.csv"
+    ruta = "./datasets/DATASET_MAESTRO_COMPLETO.csv"
     df_limpio = cargar_y_limpiar_csv(ruta)
-    df_limpio.to_csv("../datasets/DATASET_LIMPIO.csv", index=False)
+    df_limpio.to_csv("./datasets/DATASET_LIMPIO.csv", index=False)
     print("✅ Datos limpios guardados en DATASET_LIMPIO.csv")

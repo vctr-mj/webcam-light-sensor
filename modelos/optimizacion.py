@@ -34,5 +34,5 @@ def optimizar_svc(ruta_train):
     return grid.best_estimator_
 
 if __name__ == "__main__":
-    optimizar_rf("../datasets/train.csv")
-    optimizar_svc("../datasets/train.csv")
+    optimizar_rf("./datasets/train.csv")
+    optimizar_svc("./datasets/train.csv")

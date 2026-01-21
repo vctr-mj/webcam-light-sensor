@@ -8,7 +8,7 @@ def agregar_features(ruta_csv):
     return df
 
 if __name__ == "__main__":
-    ruta = "../datasets/DATASET_TRANSFORMADO.csv"
+    ruta = "./datasets/DATASET_TRANSFORMADO.csv"
     df_feat = agregar_features(ruta)
-    df_feat.to_csv("../datasets/DATASET_FEATURES.csv", index=False)
+    df_feat.to_csv("./datasets/DATASET_FEATURES.csv", index=False)
     print("✅ Features adicionales guardadas en DATASET_FEATURES.csv")
