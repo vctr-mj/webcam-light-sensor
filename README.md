@@ -56,3 +56,19 @@ Consulta los README específicos para cada etapa.
    ```bash
    pip install -r requirements.txt
    ```
+
+## Uso de la carpeta `datasets_compartido` y el script `unir_datasets.py`
+
+Para combinar los archivos de datos (CSV) de las carpetas `datasets/` y `datasets_compartido/` en un solo archivo maestro, sigue estos pasos:
+
+1. Coloca los archivos `.csv` que deseas unir dentro de las carpetas en `datasets_compartido/` (pueden estar en subcarpetas).
+2. Ejecuta el script de unión:
+   ```bash
+   python scripts/unir_datasets.py
+   ```
+   Esto generará (o actualizará) el archivo `datasets/DATASET_MAESTRO_COMPLETO.csv` con la unión de todos los archivos CSV encontrados en ambas carpetas.
+
+**Notas:**
+- El script ignora automáticamente el archivo maestro si ya existe, para evitar duplicados.
+- Solo se unirán archivos con extensión `.csv`.
+- Puedes agregar nuevos archivos a cualquiera de las dos carpetas y volver a ejecutar el script para actualizar el dataset maestro.

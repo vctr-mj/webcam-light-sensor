@@ -29,8 +29,11 @@ venv.bak/
 
 # --- Datos del Proyecto (CRÍTICO) ---
 # Ignoramos la carpeta datasets completa para no saturar GitHub con miles de fotos
-datasets/
-datasets_compartido/
+datasets/*
+datasets_compartido/*
+!datasets/.gitkeep
+!datasets_compartido/.gitkeep
+
 # Ignoramos carpeta de resultados de análisis
 # resultados_graficos/
 
@@ -44,6 +47,9 @@ desktop.ini
 
 # --- Logs ---
 *.log
+
+# --- Rar ---
+*.rar
 
 # --- Cachés de Python en src/ ---
 src/__pycache__/
