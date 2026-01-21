@@ -50,6 +50,7 @@ desktop.ini
 
 # --- Rar ---
 *.rar
+*.zip
 
 # --- Cachés de Python en src/ ---
 src/__pycache__/
