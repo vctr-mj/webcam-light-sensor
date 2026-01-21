@@ -39,7 +39,7 @@ python modelos/optimizacion.py
 
 Abre los notebooks para explorar y analizar resultados:
 
-- `notebooks/exploracion.ipynb`: Exploración y visualización inicial de los datos.
+- `notebooks/exploratory_data_analysis.ipynb`: Exploración y visualización inicial de los datos.
 - `notebooks/analisis_resultados.ipynb`: Comparación de accuracy y métricas de los modelos entrenados.
 
 ---

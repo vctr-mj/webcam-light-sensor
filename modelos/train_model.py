@@ -1,8 +1,7 @@
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.linear_model import LogisticRegression
 import joblib
 
 def entrenar_modelos(ruta_train):
@@ -14,7 +13,7 @@ def entrenar_modelos(ruta_train):
         "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
         "svc": SVC(probability=True, random_state=42),
         "knn": KNeighborsClassifier(n_neighbors=5),
-        "logistic": LogisticRegression(max_iter=1000, random_state=42)
+        "gradient_boosting": GradientBoostingClassifier(n_estimators=100, random_state=42)
     }
 
     for nombre, modelo in modelos.items():
