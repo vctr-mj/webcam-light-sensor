@@ -15,8 +15,9 @@ for carpeta in CARPETAS_BUSQUEDA:
     encontrados = glob.glob(patron, recursive=True)
     archivos.extend(encontrados)
 
+no_considerar = [f"datasets\\{NOMBRE_MAESTRO}", "datasets\\DATASET_FEATURES.csv", "datasets\\DATASET_LIMPIO.csv", "datasets\\DATASET_TRANSFORMADO.csv", "datasets\\test.csv", "datasets\\train.csv"]
 # Filtramos para no intentar unir el archivo maestro consigo mismo si ya existe
-archivos = [f for f in archivos if NOMBRE_MAESTRO not in f]
+archivos = [f for f in archivos if f not in no_considerar]
 
 if archivos:
     print(f"✅ Se encontraron {len(archivos)} archivos de sesión.")
