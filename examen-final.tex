@@ -15,6 +15,8 @@
 \usepackage{multirow}
 \usepackage{float}
 \usepackage{cite}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
 
 % Configuración para código Python
 \lstset{
@@ -199,6 +201,178 @@ La arquitectura sigue un flujo secuencial de cinco etapas, alineadas con las cap
         \item \textbf{Persistencia:} El sistema registra la etiqueta, la fecha y la confianza de la predicción en el archivo CSV (\texttt{dataset.csv}) para su posterior auditoría.
     \end{itemize}
 \end{description}
+
+\subsection{Arquitectura del Clasificador Multi-Categoria}
+
+El sistema implementa una arquitectura jerarquica de clasificacion denominada \textbf{Multi-Category Classifier} que combina tres componentes principales para lograr una precision global del 98.97\%. Esta arquitectura sigue el paradigma de \textit{stacking} donde clasificadores binarios especializados alimentan a un meta-clasificador final.
+
+% Definicion de estilos TikZ para el diagrama
+\tikzset{
+    inputbox/.style={rectangle, draw=blue!70, fill=blue!10, thick, minimum width=4cm, minimum height=0.8cm, text centered, font=\small},
+    igranker/.style={rectangle, draw=orange!70, fill=orange!10, thick, minimum width=4cm, minimum height=1cm, text centered, font=\small},
+    binarymodel/.style={rectangle, draw=green!70, fill=green!10, thick, minimum width=1.8cm, minimum height=1.2cm, text centered, font=\scriptsize},
+    probbox/.style={rectangle, draw=purple!70, fill=purple!10, thick, minimum width=4.5cm, minimum height=0.8cm, text centered, font=\small},
+    metaclass/.style={rectangle, draw=red!70, fill=red!10, thick, minimum width=4cm, minimum height=1cm, text centered, font=\small},
+    outputbox/.style={rectangle, draw=black!70, fill=gray!10, thick, minimum width=3.5cm, minimum height=0.8cm, text centered, font=\small},
+    arrow/.style={-{Stealth[length=2.5mm]}, thick}
+}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[node distance=0.8cm]
+        % Nodo de entrada
+        \node[inputbox] (input) {\textbf{Datos de Entrada} $(X)$};
+
+        % CategoryIGRanker
+        \node[igranker, below=of input] (igranker) {\textbf{CategoryIGRanker}\\ (Seleccion de Features por IG)};
+
+        % Clasificadores binarios
+        \node[binarymodel, below left=1cm and 1.5cm of igranker] (m1) {\textbf{Modelo}\\ Natural};
+        \node[binarymodel, below left=1cm and 0cm of igranker] (m2) {\textbf{Modelo}\\ Artificial};
+        \node[binarymodel, below right=1cm and 0cm of igranker] (m3) {\textbf{Modelo}\\ Pantallas};
+        \node[binarymodel, below right=1cm and 1.5cm of igranker] (m4) {\textbf{Modelo}\\ Mix};
+
+        % Caja de probabilidades
+        \node[probbox, below=2.8cm of igranker] (probs) {\textbf{Probabilidades por Categoria} $[P_1, P_2, P_3, P_4]$};
+
+        % Meta-clasificador
+        \node[metaclass, below=of probs] (meta) {\textbf{Meta-Clasificador}\\ (Logistic Regression Multinomial)};
+
+        % Prediccion final
+        \node[outputbox, below=of meta] (output) {\textbf{Prediccion Final}};
+
+        % Flechas
+        \draw[arrow] (input) -- (igranker);
+        \draw[arrow] (igranker) -- (m1);
+        \draw[arrow] (igranker) -- (m2);
+        \draw[arrow] (igranker) -- (m3);
+        \draw[arrow] (igranker) -- (m4);
+        \draw[arrow] (m1) -- (probs);
+        \draw[arrow] (m2) -- (probs);
+        \draw[arrow] (m3) -- (probs);
+        \draw[arrow] (m4) -- (probs);
+        \draw[arrow] (probs) -- (meta);
+        \draw[arrow] (meta) -- (output);
+
+        % Etiquetas laterales
+        \node[left=0.3cm of igranker, font=\scriptsize\itshape, text=gray] {Nivel 1};
+        \node[left=0.3cm of m1, font=\scriptsize\itshape, text=gray] {Nivel 2};
+        \node[left=0.3cm of meta, font=\scriptsize\itshape, text=gray] {Nivel 3};
+
+    \end{tikzpicture}
+    \caption{Arquitectura del Multi-Category Classifier. El flujo de datos atraviesa tres niveles: seleccion de caracteristicas por Ganancia de Informacion (IG), clasificadores binarios One-vs-Rest (Random Forest), y un meta-clasificador de ensamble (Logistic Regression multinomial).}
+    \label{fig:multi_category_arch}
+\end{figure}
+
+\subsubsection{Componente 1: CategoryIGRanker (Seleccion de Caracteristicas)}
+
+El \textbf{CategoryIGRanker} implementa un mecanismo de seleccion de caracteristicas basado en la \textbf{Ganancia de Informacion} (IG, \textit{Information Gain}) calculada de forma independiente para cada categoria. La Ganancia de Informacion mide cuanta incertidumbre sobre la clase objetivo reduce una caracteristica:
+
+\begin{equation}
+    IG(Y, X) = H(Y) - H(Y|X)
+\end{equation}
+
+donde $H(Y)$ representa la entropia de la variable objetivo (clase) y $H(Y|X)$ es la entropia condicional dado el valor de la caracteristica $X$.
+
+Este componente realiza las siguientes operaciones:
+\begin{itemize}
+    \item Calcula la matriz de IG para cada par \textit{(feature, categoria)} utilizando el paradigma \textit{One-vs-Rest}.
+    \item Genera un ranking de caracteristicas especifico para cada categoria.
+    \item Selecciona las \textit{Top-K} caracteristicas mas informativas para cada modelo binario.
+\end{itemize}
+
+La Tabla \ref{tab:ig_matrix} presenta la matriz de Ganancia de Informacion obtenida en el experimento:
+
+\begin{table}[H]
+    \centering
+    \caption{Matriz de Ganancia de Informacion (Features $\times$ Categorias)}
+    \label{tab:ig_matrix}
+    \begin{tabular}{@{}lcccc@{}}
+        \toprule
+        \textbf{Feature} & \textbf{Natural} & \textbf{Artificial} & \textbf{Pantallas} & \textbf{Mix} \\ \midrule
+        \texttt{std\_v} & 0.329 & 0.382 & \textbf{0.571} & 0.359 \\
+        \texttt{mean\_b} & 0.241 & 0.371 & \textbf{0.571} & 0.256 \\
+        \texttt{skew\_v} & 0.375 & 0.455 & \textbf{0.569} & 0.415 \\
+        \texttt{v\_95} & 0.337 & \textbf{0.513} & \textbf{0.570} & 0.389 \\ \bottomrule
+    \end{tabular}
+    \begin{tablenotes}
+        \small
+        \item \textit{Nota:} Valores en negrita indican IG $> 0.5$ (alta discriminacion).
+    \end{tablenotes}
+\end{table}
+
+\subsubsection{Componente 2: Clasificadores Binarios por Categoria (One-vs-Rest Random Forest)}
+
+El segundo nivel de la arquitectura consta de \textbf{cuatro clasificadores binarios independientes}, cada uno implementado mediante un modelo \textbf{Random Forest}. Estos clasificadores siguen el paradigma \textit{One-vs-Rest} (OvR), donde cada modelo aprende a distinguir una categoria especifica del resto:
+
+\begin{itemize}
+    \item \textbf{Modelo Natural:} Distingue muestras de luz natural vs. (artificial $\cup$ pantallas $\cup$ mix).
+    \item \textbf{Modelo Artificial:} Distingue muestras de luz artificial vs. el resto.
+    \item \textbf{Modelo Pantallas:} Distingue muestras de pantallas vs. el resto.
+    \item \textbf{Modelo Mix:} Distingue muestras de iluminacion mixta vs. el resto.
+\end{itemize}
+
+Cada modelo Random Forest utiliza las \textit{Top-K} caracteristicas segun el ranking IG calculado por el CategoryIGRanker para su categoria correspondiente. La configuracion optima establecida es:
+
+\begin{table}[H]
+    \centering
+    \caption{Configuracion de los Clasificadores Binarios Random Forest}
+    \begin{tabular}{@{}ll@{}}
+        \toprule
+        \textbf{Parametro} & \textbf{Valor} \\ \midrule
+        \texttt{n\_estimators} & 100 \\
+        \texttt{criterion} & gini \\
+        \texttt{max\_depth} & None (sin limite) \\
+        \texttt{top\_k} & 4 (todas las features disponibles) \\ \bottomrule
+    \end{tabular}
+\end{table}
+
+Cada clasificador binario genera una \textbf{probabilidad de pertenencia} $P_i \in [0, 1]$ para su categoria correspondiente, resultando en un vector de probabilidades $\mathbf{P} = [P_{\text{natural}}, P_{\text{artificial}}, P_{\text{pantallas}}, P_{\text{mix}}]$.
+
+\subsubsection{Componente 3: Meta-Clasificador (Logistic Regression Multinomial)}
+
+El tercer y ultimo nivel implementa un \textbf{meta-clasificador de ensamble} basado en \textbf{Regresion Logistica Multinomial}. Este componente recibe como entrada el vector de probabilidades generado por los clasificadores binarios y produce la prediccion final multi-clase.
+
+La Regresion Logistica Multinomial modela la probabilidad de cada clase mediante la funcion \textit{softmax}:
+
+\begin{equation}
+    P(Y = k | \mathbf{P}) = \frac{e^{\mathbf{w}_k^T \mathbf{P} + b_k}}{\sum_{j=1}^{4} e^{\mathbf{w}_j^T \mathbf{P} + b_j}}
+\end{equation}
+
+donde $\mathbf{w}_k$ y $b_k$ son los pesos y sesgo aprendidos para la clase $k$.
+
+El meta-clasificador aporta las siguientes ventajas:
+\begin{itemize}
+    \item \textbf{Calibracion de probabilidades:} Corrige posibles desbalances en las salidas de los modelos binarios.
+    \item \textbf{Resolucion de conflictos:} Cuando multiples clasificadores binarios indican alta probabilidad, pondera inteligentemente.
+    \item \textbf{Regularizacion:} Evita sobreajuste mediante penalizacion L2 implicita.
+\end{itemize}
+
+\subsubsection{Flujo de Trabajo Completo}
+
+El proceso de inferencia para una nueva muestra sigue el siguiente flujo secuencial:
+
+\begin{enumerate}
+    \item \textbf{Entrada:} Se recibe un vector de caracteristicas $\mathbf{X} = [\texttt{std\_v}, \texttt{mean\_b}, \texttt{skew\_v}, \texttt{v\_95}]$.
+
+    \item \textbf{Seleccion de Features:} El CategoryIGRanker selecciona las caracteristicas optimas para cada modelo binario segun el ranking IG precalculado.
+
+    \item \textbf{Clasificacion Binaria:} Cada uno de los 4 modelos Random Forest procesa la muestra en paralelo, generando una probabilidad de pertenencia:
+    \begin{equation}
+        P_i = \text{RandomForest}_i(\mathbf{X}_{\text{top-k}}), \quad i \in \{\text{natural}, \text{artificial}, \text{pantallas}, \text{mix}\}
+    \end{equation}
+
+    \item \textbf{Ensamble:} El vector de probabilidades $\mathbf{P} = [P_1, P_2, P_3, P_4]$ alimenta al meta-clasificador.
+
+    \item \textbf{Prediccion:} La Regresion Logistica Multinomial calcula las probabilidades finales calibradas y retorna la clase con maxima probabilidad:
+    \begin{equation}
+        \hat{y} = \arg\max_k P(Y = k | \mathbf{P})
+    \end{equation}
+
+    \item \textbf{Modo de Precision (opcional):} Si la probabilidad maxima esta por debajo de un umbral configurable $\tau$ (por defecto $\tau = 0.7$), el sistema retorna ``no\_decidido'' para evitar clasificaciones inciertas.
+\end{enumerate}
+
+Esta arquitectura jerarquica logro una precision del \textbf{98.97\%} en el conjunto de prueba, con clasificacion perfecta (100\%) para las categorias \textit{pantallas} y \textit{artificial}, validando la efectividad del enfoque de clasificadores especializados por categoria.
 
 \section{Diseño del Experimento}
 
@@ -439,8 +613,74 @@ Aunque parecen iguales, el eje Azul-Amarillo (canal $b^*$) las distingue. La Luz
 \subsubsection*{C. Luz Mixta}
 Confirmamos que la clase "Mixta" es el promedio de las otras, ubicándose matemáticamente justo en el medio de la luz natural y artificial.
 
+\subsection{Análisis de Ganancia de Información}
+
+Para cuantificar la capacidad discriminativa de cada atributo, se calculó la Ganancia de Información (IG) de las cuatro características principales respecto a cada categoría de luz. Este análisis permite identificar qué variables aportan mayor valor predictivo para la clasificación.
+
+\subsubsection*{Matriz de Ganancia de Información por Categoría}
+
+La Tabla \ref{tab:ig_matrix} presenta la matriz completa de IG, donde cada celda representa la reducción de entropía que aporta el atributo (fila) para distinguir la categoría específica (columna) del resto de clases.
+
+\begin{table}[H]
+    \centering
+    \caption{Matriz de Ganancia de Información (Atributos $\times$ Categorías)}
+    \label{tab:ig_matrix}
+    \begin{tabular}{@{}lcccc@{}}
+        \toprule
+        \textbf{Atributo} & \textbf{Natural} & \textbf{Artificial} & \textbf{Pantallas} & \textbf{Mix} \\ \midrule
+        \texttt{std\_v}   & 0.329 & 0.382 & 0.571 & 0.359 \\
+        \texttt{mean\_b}  & 0.241 & 0.371 & 0.571 & 0.256 \\
+        \texttt{skew\_v}  & 0.375 & 0.455 & 0.569 & 0.415 \\
+        \texttt{v\_95}    & 0.337 & 0.513 & 0.570 & 0.389 \\ \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsection*{Ranking Global de Atributos}
+
+La Tabla \ref{tab:ig_ranking} muestra el ranking global de atributos, calculado como el promedio ponderado de la IG a través de todas las categorías. Este ranking fundamenta la selección de características para el modelo final.
+
+\begin{table}[H]
+    \centering
+    \caption{Ranking Global de Atributos por Ganancia de Información}
+    \label{tab:ig_ranking}
+    \begin{tabular}{@{}clc@{}}
+        \toprule
+        \textbf{Ranking} & \textbf{Atributo} & \textbf{IG Global} \\ \midrule
+        1 & \texttt{skew\_v}  & 0.454 \\
+        2 & \texttt{v\_95}    & 0.452 \\
+        3 & \texttt{std\_v}   & 0.410 \\
+        4 & \texttt{mean\_b}  & 0.360 \\ \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsection*{Interpretación de los Resultados}
+
+\begin{description}
+    \item[\texttt{skew\_v} (Asimetría del Brillo):] Ocupa el primer lugar global (IG = 0.454) debido a su capacidad para detectar distribuciones asimétricas de luz. Las fuentes puntuales (pantallas, focos LED) generan histogramas con cola larga hacia valores altos, mientras que la luz natural difusa produce distribuciones más simétricas.
+
+    \item[\texttt{v\_95} (Percentil 95 del Brillo):] Con IG = 0.452, este atributo captura la intensidad máxima robusta de la escena. Es particularmente efectivo para distinguir ``Artificial'' (IG = 0.513), donde los focos LED generan zonas de alta luminancia concentrada.
+
+    \item[\texttt{std\_v} (Desviación Estándar del Brillo):] Mide la variabilidad de la luz en la escena. Un valor alto indica alto contraste (sombras marcadas), característico de fuentes direccionales.
+
+    \item[\texttt{mean\_b} (Canal $b^*$ CIELAB):] Representa el eje Azul-Amarillo del espacio perceptual. Aunque tiene la IG global más baja (0.360), es crítico para diferenciar la temperatura de color: valores negativos indican dominante azul (natural/pantallas) y positivos indican dominante cálida (artificial).
+\end{description}
+
+\subsubsection*{Fenómeno de Alta Discriminabilidad en Pantallas}
+
+Un hallazgo notable es que la categoría ``Pantallas'' presenta valores de IG superiores a 0.57 para \textit{todos} los atributos analizados. Este fenómeno se explica por la naturaleza física única de esta fuente de luz:
+
+\begin{enumerate}
+    \item \textbf{Emisión Controlada:} Los monitores LCD/LED emiten luz con espectro y potencia constantes, a diferencia de la variabilidad del sol o la heterogeneidad de luminarias domésticas.
+
+    \item \textbf{Contraste Ambiental Extremo:} El escenario ``Pantallas'' implica un entorno oscuro con una única fuente brillante, generando distribuciones estadísticas altamente características.
+
+    \item \textbf{Firma Espectral Distintiva:} La emisión de luz azul (pico en 450-470 nm) de los monitores produce una combinación única de valores en \texttt{mean\_b} y \texttt{skew\_v} que no se replica en ninguna otra categoría.
+\end{enumerate}
+
+Este resultado valida la hipótesis de que las pantallas constituyen la clase más fácilmente separable del problema, lo cual se confirma posteriormente con la precisión del 100\% obtenida por los clasificadores en esta categoría.
+
 \section{Preparación de Datos}
-El objetivo es transformar los datos "crudos" en un conjunto limpio y listo para el entrenamiento.
+El objetivo es transformar los datos ``crudos'' en un conjunto limpio y listo para el entrenamiento.
 
 \subsection{Limpieza de Datos}
 \begin{itemize}
@@ -541,12 +781,101 @@ Random Forest alcanzó el mayor rendimiento global (\textbf{98.97\%}), seguido d
 \subsection{Selección del Modelo Final}
 Se selecciona \textbf{Random Forest} por su estabilidad operativa, insensibilidad al escalado y robustez en la votación por mayoría (Bagging).
 
+\subsection{Análisis del Modo de Precisión}
+\label{subsec:precision-mode}
+
+El clasificador implementa un \textbf{modo de precisión} que permite ajustar el umbral de confianza para la toma de decisiones. Este mecanismo introduce un compromiso controlable entre la precisión de las predicciones y la cobertura del sistema.
+
+\subsubsection{Concepto del Modo de Precisión}
+
+En el modo estándar, el clasificador asigna cada muestra a la clase con mayor probabilidad predicha. El modo de precisión introduce un umbral de confianza $\tau$ tal que:
+
+\begin{equation}
+    \text{Decisión} =
+    \begin{cases}
+        \arg\max_c P(c|x) & \text{si } \max_c P(c|x) \geq \tau \\
+        \text{No Decidido} & \text{en caso contrario}
+    \end{cases}
+\end{equation}
+
+donde $P(c|x)$ representa la probabilidad de la clase $c$ dada la observación $x$. Las muestras clasificadas como ``No Decidido'' requieren revisión adicional, pero las decisiones tomadas presentan mayor confiabilidad.
+
+\subsubsection{Comparación de Umbrales}
+
+La Tabla~\ref{tab:threshold-comparison} presenta el impacto de diferentes umbrales de confianza sobre las métricas de rendimiento del sistema.
+
+\begin{table}[H]
+    \centering
+    \caption{Comparación de métricas según umbral de confianza}
+    \label{tab:threshold-comparison}
+    \begin{tabular}{@{}cccccc@{}}
+        \toprule
+        \textbf{Umbral} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Decididos} & \textbf{No Decididos} & \textbf{\% No Decidido} \\
+        \midrule
+        0.5 & 98.90\% & 98.90\% & 1,458 & 2 & 0.14\% \\
+        0.6 & 98.90\% & 98.90\% & 1,457 & 3 & 0.21\% \\
+        0.7 & 98.97\% & 98.97\% & 1,456 & 4 & 0.27\% \\
+        0.8 & 99.10\% & 99.10\% & 1,450 & 10 & 0.68\% \\
+        0.9 & 99.37\% & 99.37\% & 1,439 & 21 & 1.44\% \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Se observa una relación directa entre el umbral de confianza y la precisión del sistema: al incrementar $\tau$ de 0.5 a 0.9, la accuracy mejora de 98.90\% a 99.37\%, representando una reducción del 43\% en la tasa de error.
+
+\subsubsection{Impacto en la Matriz de Confusión}
+
+El análisis de las matrices de confusión bajo diferentes umbrales revela que los errores eliminados corresponden predominantemente a confusiones entre las clases \texttt{natural} y \texttt{mix}. Esto se explica por:
+
+\begin{itemize}
+    \item La iluminación \texttt{mix} representa una combinación de fuentes naturales y artificiales
+    \item Las condiciones de transición (amanecer, atardecer con iluminación interior) generan características ambiguas
+    \item El modelo asigna probabilidades intermedias a estos casos límite
+\end{itemize}
+
+\subsubsection{Recomendaciones de Configuración}
+
+La Tabla~\ref{tab:threshold-recommendations} presenta las configuraciones recomendadas según el contexto de aplicación.
+
+\begin{table}[H]
+    \centering
+    \caption{Recomendaciones de umbral según caso de uso}
+    \label{tab:threshold-recommendations}
+    \begin{tabular}{@{}lcp{5.5cm}@{}}
+        \toprule
+        \textbf{Caso de Uso} & \textbf{Umbral} & \textbf{Justificación} \\
+        \midrule
+        Aplicación general & 0.7 & Balance óptimo entre precisión (98.97\%) y cobertura (99.73\%). \\
+        Sistema crítico & 0.8--0.9 & Máxima precisión para aplicaciones donde los errores tienen alto costo. \\
+        Alta cobertura & 0.5--0.6 & Minimiza casos no decididos manteniendo precisión aceptable. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
 \section{Conclusiones}
 \begin{enumerate}
-    \item \textbf{Viabilidad del Hardware de Bajo Costo:} Una webcam estándar y el procesamiento adecuado validan la hipótesis de bajo costo propuesta por Botero et al. \cite{lao}.
-    \item \textbf{Superioridad de los Métodos de Ensamble:} Random Forest (98.97\%) superó a los modelos lineales, confirmando que la votación por mayoría es ideal para iluminación mixta.
-    \item \textbf{Patrones Físicos Distintivos:} Se identificaron marcadores únicos: asimetría $>4.0$ para pantallas y estabilidad en el canal $b^*$ para luz artificial.
-    \item \textbf{Solución al Problema del Home Office:} El sistema corrige automatismos fallidos y previene fatiga visual con un 99\% de acierto.
+    \item \textbf{Viabilidad del Hardware de Bajo Costo:} Una webcam estándar y el procesamiento estadístico en espacios de color HSV y CIELAB validan la hipótesis de bajo costo propuesta por Botero et al. \cite{lao}, logrando una precisión del \textbf{98.97\%}.
+
+    \item \textbf{Eficacia del Criterio de Ganancia de Información:} La metodología de selección de atributos mediante IG permitió identificar que \texttt{skew\_v} (IG = 0.454) y \texttt{v\_95} (IG = 0.452) son los predictores más potentes. Este análisis reduce la dimensionalidad del problema y mejora la interpretabilidad física del modelo.
+
+    \item \textbf{Superioridad de la Arquitectura Multi-Categoría:} El clasificador One-vs-Rest con Meta-Ensemble supera a los modelos monolíticos al especializar cada detector en las características de mayor IG para cada clase. Random Forest (98.97\%) superó a SVM (95.07\%), validando la eficacia de los métodos de ensamble para datos tabulares de sensores.
+
+    \item \textbf{Patrones Físicos Distintivos Validados:} Se confirmaron marcadores espectrales únicos para cada categoría:
+    \begin{itemize}
+        \item Pantallas: IG $>$ 0.57 para \textit{todos} los atributos (detección determinista al 100\%).
+        \item Artificial: Alta discriminación en \texttt{v\_95} (IG = 0.513) por focos LED concentrados.
+        \item Natural: Distribución más uniforme de IG, requiere combinación de múltiples atributos.
+        \item Mix: Comportamiento intermedio, justifica el uso del meta-clasificador.
+    \end{itemize}
+
+    \item \textbf{Optimización del Modo de Precisión:} La calibración de umbrales por clase permitió incrementar la precisión hasta \textbf{99.37\%} (umbral $\tau = 0.9$) con solo 1.44\% de casos no decididos. El umbral óptimo recomendado es $\tau = 0.7$ para balance entre precisión y cobertura.
+
+    \item \textbf{Solución Integral al Problema del Home Office:} El sistema desarrollado permite:
+    \begin{itemize}
+        \item Corregir automatismos fallidos de Balance de Blancos (AWB).
+        \item Prevenir fatiga visual mediante alertas de exposición prolongada a luz azul.
+        \item Integrar con sistemas IoT para compensación lumínica activa.
+    \end{itemize}
 \end{enumerate}
 
 \section{Recomendaciones}
@@ -600,14 +929,8 @@ H. Ishii, "A machine learning approach for light source classification: Performa
 
 El código fuente completo, los archivos de audio procesados y el dataset generado en este trabajo se encuentran disponibles en el siguiente repositorio:
 
-\begin{left}
-    
-\end{left}
-    
-\end{lef}
-    
-\end{right}
-    \url{}
+\begin{center}
+    \url{https://github.com/orlando-kuan/webcam-light-sensor}
 \end{center}
 
 
