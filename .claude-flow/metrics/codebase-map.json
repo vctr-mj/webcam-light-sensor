@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-01-28T03:18:32.544Z",
+  "projectRoot": "/home/orlando/maestria/webcam-light-sensor",
+  "structure": {
+    "hasPackageJson": false,
+    "hasTsConfig": false,
+    "hasClaudeConfig": false,
+    "hasClaudeFlow": true
+  },
+  "scannedAt": 1769570312544
+}

@@ -1,0 +1,49 @@
+============================================================
+RESUMEN DE EVALUACION DEL MODELO
+============================================================
+
+Accuracy Global: 0.9897 (98.97%)
+Muestras de Test: 1460
+Numero de Caracteristicas: 4
+Numero de Categorias: 4
+
+Categorias:
+  - artificial
+  - mix
+  - natural
+  - pantallas
+
+Caracteristicas:
+  - std_v
+  - mean_b
+  - skew_v
+  - v_95
+
+------------------------------------------------------------
+METRICAS POR CATEGORIA:
+------------------------------------------------------------
+
+artificial:
+  Precision: 0.9973
+  Recall:    1.0000
+  F1-Score:  0.9986
+  Support:   366
+
+mix:
+  Precision: 0.9820
+  Recall:    0.9820
+  F1-Score:  0.9820
+  Support:   389
+
+natural:
+  Precision: 0.9786
+  Recall:    0.9756
+  F1-Score:  0.9771
+  Support:   328
+
+pantallas:
+  Precision: 1.0000
+  Recall:    1.0000
+  F1-Score:  1.0000
+  Support:   377
+

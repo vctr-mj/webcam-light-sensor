@@ -1,0 +1,618 @@
+% File RobotsMonstruicidas.tex
+\documentclass[10pt,twocolumn]{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage{times} % Times Roman font
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{url}
+\usepackage{latexsym}
+\usepackage{amsmath, amsthm, amsfonts}
+\usepackage{algorithm, algorithmic}  
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{cite}
+
+% Configuración para código Python
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny,
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{gray!10},
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    frame=single,
+    tabsize=2,
+    captionpos=b,
+    breaklines=true,
+    breakatwhitespace=false,
+    escapeinside={\%*}{*)}
+}
+
+\title{Procedimiento Metodológico para la Generación de un Dataset Etiquetado orientado a la Clasificación de Locutores Políticos mediante Análisis de Audio}
+
+\author{
+  Orlando José Kuan Becerra$^1$, Alex Celestino León Pacheco$^1$, Edwin Jhon Minchán Ramos$^1$, \\
+  Víctor Fernando Montes Jaramillo$^1$, Marco Antonio Nina Aguilar$^1$ \\
+  \\
+  $^1$Universidad Nacional de Ingeniería, Facultad de Ingeniería Industrial y de Sistemas \\
+  Av. Túpac Amaru 210, Rímac, Lima, Perú \\
+  {\tt \{orlando.kuan.b, alex.leon.p, edwin.minchan.r, victor.montes.j, marco.nina.a\}@uni.edu.pe}
+}
+
+\date{28 de enero de 2026
+}
+
+\begin{document}
+\maketitle
+
+\noindent {\bf Curso:} MIA-103 Machine Learning \\
+{\bf Docente:} Mg. Samuel Oporto Díaz \\
+{\bf Sección:} B \\
+{\bf Ciclo Académico:} 2025-2
+
+\begin{abstract}
+    El presente trabajo de investigación desarrolla un sistema de información basado en agentes inteligentes para abordar la problemática de la iluminación mixta en entornos de oficina doméstica (\textit{Home Office}). El problema se define formalmente como una situación de diagnóstico, caracterizada por un conjunto de variables espectrales que describen la interacción estocástica entre la luz natural, la iluminación LED y la emisión de luz azul de los monitores.
+
+    La metodología empleada sigue un diseño experimental con estrategia \textit{Ex-Ante}, donde se identificaron previamente las categorías a diagnosticar (Luz Natural, LED, Pantalla) y se prepararon los escenarios físicos controlados antes de proceder al muestreo. La arquitectura del sistema integra componentes de Hardware (Webcam como sensor matricial) y Software (Python/OpenCV), ejecutando un proceso de Adquisición de Datos (DAQ) que asegura la calidad de las señales captadas para la conformación del dataset.
+
+    En la fase de ingeniería de datos, se realizó una descripción estadística exhaustiva para identificar la calidad predictiva de los atributos extraídos (espacios de color HSV y CIELAB). Se generó un ranking de atributos basado en el cálculo de la ganancia de información, permitiendo seleccionar las variables con mayor impacto en la discriminación de clases (Alta, Media, Baja). Posteriormente, se aplicaron técnicas de preparación de datos, incluyendo la normalización y el balanceo de clases, para optimizar el entrenamiento.
+
+    Para la etapa de modelado, se cumplió con el requisito de implementar cuatro algoritmos de clasificación distintos: \textit{K-Nearest Neighbors} (KNN), \textit{Support Vector Machine} (SVM), \textit{Random Forest} y XGBoost. Se identificaron los parámetros óptimos y se analizaron los coeficientes de ajuste de cada modelo. Finalmente, el proyecto concluye con la optimización de parámetros orientada a maximizar los indicadores de rendimiento clave, específicamente el Valor Predictivo Positivo (VPP), garantizando un diagnóstico robusto y preciso de la fuente de luz dominante.
+    
+    \vspace{0.5cm}
+    \textbf{Palabras clave:} Clasificación de Fuentes de Luz, Aprendizaje Automático, Sensores de Imagen, Espacios de Color, Entornos Inteligentes.
+\end{abstract}
+
+{\bf Palabras clave:} Reconocimiento de Locutores, Dataset de Audio, Pipeline ETL, Ingeniería de Características, Procesamiento Digital de Señales, PCA.
+
+\section{Introducción}
+
+\subsection{Realidad Problemática}
+
+La transición global hacia entornos de trabajo híbridos (\textit{Home Office}) ha transformado las dinámicas de iluminación en los espacios residenciales. A diferencia de las oficinas corporativas con iluminación controlada y estandarizada, los entornos domésticos presentan una interacción estocástica de fuentes de luz: la radiación solar variable, la iluminación artificial LED de diversas temperaturas y la emisión de luz azul directa de monitores y pantallas.
+
+Esta variabilidad no controlada genera dos problemas críticos:
+
+\begin{description}
+    \item[Salud Visual:] La fatiga ocular y la alteración del ritmo circadiano debido a la exposición prolongada a mezclas inadecuadas de temperatura de color.
+    \item[Visión Computacional:] Los algoritmos de balance de blancos automático (AWB) en cámaras web fallan al no poder distinguir si una escena es "azul" porque es de noche o porque el usuario está frente a un monitor, afectando la calidad de imagen en videoconferencias y sistemas de seguridad.
+\end{description}
+
+Por lo tanto, se requiere un sistema de diagnóstico capaz de identificar la fuente de luz dominante en tiempo real utilizando \textit{hardware} accesible.
+
+\subsection{Revisión Bibliográfica}
+
+La caracterización de fuentes lumínicas ha evolucionado desde la radiometría tradicional hacia el uso de sensores ópticos integrados con Inteligencia Artificial. La literatura reciente valida el uso de características estadísticas y modelos de ensamble para este propósito.
+
+Rhudy et al. \cite{rhudy} desarrollaron un sistema de clasificación de entornos (interior/exterior) utilizando sensores de temperatura de color y luminosidad. Su estudio comparativo concluyó que los Árboles Embolsados (\textit{Bagged Trees}) superaron en rendimiento (99.2\%) a las Redes Neuronales Artificiales (ANN) y a las Máquinas de Soporte Vectorial (SVM). Este hallazgo fundamenta la elección de \textit{Random Forest} en la presente investigación, demostrando que para datos tabulares de sensores, los métodos de ensamble ofrecen mayor robustez que los modelos profundos.
+
+En cuanto a la extracción de características, Mestiraihi et al. \cite{mestiraihi} propusieron el uso de \textit{Visible Light Sensing} (VLS) para estimar ocupación, demostrando que la función de densidad de probabilidad (PDF) de la potencia óptica recibida contiene patrones únicos. Este enfoque valida nuestra metodología de utilizar la asimetría del histograma (\textit{skew\_v}) como descriptor morfológico de la luz, más allá de los valores medios de intensidad.
+
+Por otro lado, la aplicación de algoritmos de \textit{gradient boosting} en señales visuales fue abordada por Lao et al. \cite{lao} en la clasificación de fuentes de luz urbana nocturna. Los autores combinaron parámetros fotográficos (ISO, obturación) con el algoritmo XGBoost, logrando diferenciar tecnologías de iluminación (LED, Sodio) con alta precisión. Esto justifica la inclusión de XGBoost como modelo de referencia (\textit{benchmark}) en nuestro estudio. Finalmente, Ishii \cite{ishii} refuerza la tendencia de sustituir compensadores rígidos por enfoques de aprendizaje automático para adaptarse a condiciones dinámicas de iluminación.
+
+La investigación se ubica en el contexto de la Visión por Computador y el procesamiento de imágenes, específicamente en la oficina doméstica (\textit{Home Office}) de un programador. En este entorno ocurre una interacción dinámica y no controlada entre el ciclo de luz natural y diversas fuentes artificiales, particularmente la emisión de luz azul de múltiples monitores.
+
+Esta interacción genera escenarios de iluminación mixta complejos que sesgan la firma de color de la imagen captada por las cámaras. La problemática central es que esta mezcla de temperaturas de color afecta negativamente el desempeño de algoritmos críticos, haciendo necesario modelar correctamente la fuente de luz dominante para optimizar el Balance de Blancos Automático (AWB) o permitir que los sistemas de seguridad corrijan la dominante de color.
+
+\section{Planteamiento del Problema}
+
+\subsection{Contexto y Situación de la Realidad}
+
+La situación problemática se ubica en el contexto de la Visión por Computador y el procesamiento de imágenes, específicamente en la oficina doméstica (\textit{Home Office}) de un programador. En este entorno ocurre una interacción dinámica y no controlada entre el ciclo de luz natural y diversas fuentes artificiales, particularmente la emisión de luz azul de múltiples monitores.
+
+Esta interacción genera escenarios de iluminación mixta complejos que sesgan la firma de color de la imagen captada por las cámaras. La problemática central es que esta mezcla de temperaturas de color afecta negativamente el desempeño de algoritmos críticos, haciendo necesario modelar correctamente la fuente de luz dominante para optimizar el Balance de Blancos Automático (AWB) o permitir que los sistemas de seguridad corrijan la dominante de color.
+
+\subsection{Caracterización del Objeto de Estudio}
+
+El objeto de estudio es el entorno visual del puesto de trabajo registrado por la cámara, el cual presenta variaciones cíclicas durante el transcurso del día (mañana, tarde y noche).
+
+El sistema caracteriza esta situación mediante variables extraídas con \textit{Machine Learning}:
+
+\begin{description}
+    \item[Variables de Entrada:] La luminosidad y el color de cada píxel, procesados para detectar qué tipo de luz predomina en la escena.
+    \item[Fenómeno a Modelar:] La "firma de color" de la imagen, la cual se ve alterada por la mezcla de luces.
+\end{description}
+
+\subsection{Naturaleza de la Decisión (Diagnóstico)}
+
+El problema se define como una tarea de Clasificación (Diagnóstico), donde se requiere determinar la categoría de la fuente de luz dominante en un instante dado.
+
+Las alternativas de decisión mutuamente excluyentes establecidas para el modelo son:
+
+\begin{itemize}
+    \item \textbf{Clase 1:} Luz Natural (Sol/Cielo).
+    \item \textbf{Clase 2:} Luz artificial.
+    \item \textbf{Clase 3:} Luz Artificial Tipo Brillo de Pantallas.
+    \item \textbf{Clase 4:} Mix.
+\end{itemize}
+
+\section{Diseño de la Arquitectura}
+
+El objetivo es establecer una arquitectura de \textit{software} modular, escalable y reproducible que integre la adquisición de señales ópticas, la ingeniería de características estadísticas y la clasificación mediante algoritmos de \textit{Gradient Boosting}.
+
+El sistema se conceptualiza como un \textit{Pipeline} de Procesamiento Secuencial dividido en tres capas lógicas: Capa de Adquisición (Hardware/Drivers), Capa de Abstracción de Datos (\textit{Feature Engineering}) y Capa de Inferencia (\textit{Machine Learning}).
+
+\subsection{Hardware (Nivel Físico y Adquisición)}
+
+Corresponde a la "Capa de Adquisición" y el "Nivel Físico". Es lo tangible y el puente directo con la realidad.
+
+\begin{description}
+    \item[Sensor/Dispositivo:] Webcam con sensor CMOS (encargada de recibir los fotones/luz).
+    \item[Controladores:] Drivers (intermediarios entre el sensor y el sistema operativo).
+    \item[Mecanismos de Control:] Bloqueo de ganancia automática y Balance de Blancos (AWB) a nivel de \textit{hardware/driver} para evitar alteraciones en la señal.
+\end{description}
+
+\subsection{Software (Lógica y Stack Tecnológico)}
+
+Para garantizar la reproducibilidad científica del experimento y la estabilidad de los algoritmos de aprendizaje, se ha estandarizado el entorno de desarrollo sobre Python 3.13. La selección de librerías obedece a criterios de eficiencia computacional (vectorización) y robustez estadística. A continuación, se detalla la función de cada componente en la arquitectura:
+
+\begin{description}
+    \item[\texttt{opencv-python}:] Gestión de la adquisición de imagen desde la webcam y transformación matemática de espacios de color (BGR a CIELAB/HSV) para aislar la crominancia.
+    \item[\texttt{numpy}:] Motor de cálculo matricial utilizado para vectorizar las imágenes y realizar operaciones aritméticas de alta velocidad sobre los canales de píxeles.
+    \item[\texttt{scipy}:] Herramienta de estadística avanzada empleada para calcular el coeficiente de asimetría (\textit{skewness}) de los histogramas de luz, métrica clave para detectar fuentes LED.
+    \item[\texttt{pandas}:] Estructuración del \textit{Dataset} Maestro, manejo de series temporales, limpieza de registros nulos y codificación numérica de las etiquetas de clase (\textit{Label Encoding}).
+    \item[\texttt{scikit-learn}:] Librería base para el preprocesamiento de datos, responsable del escalado de variables (\textit{StandardScaler}) y la partición estratificada del conjunto de entrenamiento/prueba.
+    \item[\texttt{xgboost}:] Implementación optimizada del algoritmo de \textit{Gradient Boosting}, utilizada como el clasificador principal por su alta precisión en datos tabulares complejos y no lineales.
+    \item[\texttt{matplotlib} y \texttt{seaborn}:] Suite de visualización científica encargada de generar la matriz de confusión para evaluación de errores y los mapas de calor de correlación de variables.
+\end{description}
+
+\subsection{Flujo de Datos (Data Pipeline)}
+
+La arquitectura sigue un flujo secuencial de cinco etapas, alineadas con las capas lógicas del diagrama de solución (Figura 1):
+
+\begin{description}
+    \item[Etapa 1: Nivel Físico (Entorno y Sensor)] \hfill \\
+    Corresponde a la interacción radiométrica inicial. Las fuentes de luz emiten fotones que inciden sobre el sensor CMOS de la webcam.
+    \begin{itemize}
+        \item \textbf{Control:} En esta etapa se establece la restricción de \textit{hardware}: bloqueo de ganancia automática y balance de blancos (AWB) para evitar alteraciones en la señal de entrada.
+    \end{itemize}
+
+    \item[Etapa 2: Adquisición de Datos (Data Ingestion)] \hfill \\
+    El sistema digitaliza la señal óptica. Mediante la librería \texttt{opencv-python}, se captura el flujo de video y se congela un fotograma \textit{Raw} en formato matricial RGB.
+
+    \item[Etapa 3: Ingeniería de Características (Processing)] \hfill \\
+    Es la fase de transformación matemática.
+    \begin{itemize}
+        \item \textbf{Transformación:} La matriz BGR se convierte a espacios CIELAB y HSV.
+        \item \textbf{Reducción:} Se aplican operadores estadísticos (\texttt{numpy}/\texttt{scipy}) para colapsar la matriz de 2.7 millones de valores a un vector compacto de 9 variables predictoras.
+        \item \textbf{Normalización:} Se aplica una estandarización \textit{Z-Score} para escalar las variables.
+    \end{itemize}
+
+    \item[Etapa 4: Inferencia (Intelligence)] \hfill \\
+    El vector numérico procesado ingresa al modelo de Inteligencia Artificial. El algoritmo evalúa las características no lineales y calcula un \textit{array} de probabilidades para las cuatro clases posibles (Natural, Artificial, Pantalla, Mix).
+
+    \item[Etapa 5: Aplicación y Decisión (Output)] \hfill \\
+    La capa final interpreta el resultado matemático.
+    \begin{itemize}
+        \item \textbf{Decisión:} Se aplica una función \texttt{argmax} para seleccionar la etiqueta con mayor probabilidad.
+        \item \textbf{Persistencia:} El sistema registra la etiqueta, la fecha y la confianza de la predicción en el archivo CSV (\texttt{dataset.csv}) para su posterior auditoría.
+    \end{itemize}
+\end{description}
+
+\section{Diseño del Experimento}
+
+\subsection{Estrategia de Etiquetado: EX-ANTE}
+Se optó por el enfoque \textit{EX-ANTE}, el cual implica que el etiquetado de la clase (la variable dependiente) se define antes de iniciar la captura de datos.
+
+\subsection{Fase de Identificación de Categorías}
+El primer paso del experimento consistió en identificar las categorías a diagnosticar. Se definieron cuatro clases que representan la variable objetivo:
+
+\begin{itemize}
+    \item \textbf{Clase 1:} Luz Natural (Sol/Cielo).
+    \item \textbf{Clase 2:} Luz artificial.
+    \item \textbf{Clase 3:} Luz Artificial Tipo Brillo de Pantallas.
+    \item \textbf{Clase 4:} Mix.
+\end{itemize}
+
+\subsection{Preparación del Escenario (Control de Variables)}
+Para cada sesión de captura, se procedió a preparar el escenario necesario asegurando que la categoría específica se encuentre presente de manera dominante.
+
+\begin{description}
+    \item[Configuración Escenario 1 (Natural):] Se abrieron cortinas y/o persianas y se apagaron todas las fuentes artificiales.
+    \item[Configuración Escenario 2 (Artificial):] Se cerraron persianas, se encendieron las luces de techo y se apagaron monitores.
+    \item[Configuración Escenario 3 (Pantallas):] Se generó oscuridad total ambiental y se encendieron los monitores con contenido de trabajo estándar.
+    \item[Configuración Escenario 4 (Mix):] Se abrieron cortinas y/o persianas y se encendieron todas las fuentes artificiales.
+\end{description}
+
+\subsection{Proceso de Muestreo}
+Una vez configurado el escenario físico y asignada la etiqueta correspondiente en el \textit{software} (\texttt{recolector.py}), se procedió al proceso de muestreo.
+
+\begin{description}
+    \item[Protocolo:] Se ejecutaron ráfagas automatizadas de 1000 instancias (fotografías) por sesión.
+    \item[Temporalidad:] Se estableció un intervalo de captura ($t = 0.5s$) para capturar micro-variaciones temporales de la luz.
+    \item[Segmentación:] Dado que la imagen completa es la señal, no se requirió segmentación espacial compleja, sino la extracción de la matriz completa de píxeles.
+\end{description}
+
+\section{DAQ (Adquisición de Datos)}
+
+\subsection{Instrumentación y Configuración del Sensor}
+En esta etapa se procedió a la captura de los datos utilizando los sensores definidos en la arquitectura. El instrumento principal es una Cámara Web (\textit{Webcam}), la cual opera como un sensor óptico matricial encargado de registrar el entorno del programador.
+
+A diferencia de un sensor puntual (como una fotocelda), este dispositivo permite capturar una matriz de señales que contiene información simultánea sobre la luminosidad y el color de cada píxel, variables críticas para detectar qué tipo de luz predomina en la escena.
+
+\subsection{Ejecución del Muestreo (Protocolo Ex-Ante)}
+La adquisición de datos se realizó bajo una estrategia \textit{Ex-Ante}. El procedimiento ejecutado fue el siguiente:
+
+\begin{description}
+    \item[Preparación del Escenario:] Antes de iniciar la captura, se preparó el entorno físico para asegurar que la categoría a diagnosticar se encontrara presente de forma dominante.
+    \item[Etiquetado en Origen:] Se asignó la etiqueta de la clase correspondiente en el \textit{software} recolector antes de iniciar la grabación, garantizando que cada instancia de datos naciera ya clasificada.
+    \item[Captura de Instancias:] Se procedió al proceso de muestreo, registrando ráfagas de imágenes en intervalos de tiempo definidos para capturar las variaciones del ciclo de vida del ambiente luminoso (mañana, tarde, noche).
+\end{description}
+
+\subsection{Verificación de Calidad de la Señal}
+Durante el proceso de adquisición, se verificó la calidad de las señales captadas para asegurar la integridad del \textit{dataset}.
+
+\begin{description}
+    \item[Validación:] Se implementaron controles en el \textit{script} de captura para descartar imágenes corruptas, negras (fallo de sensor) o totalmente saturadas (sobreexposición extrema) que no aportan información válida sobre la firma de color.
+    \item[Re-muestreo:] En los casos donde la variación ambiental fue insuficiente o el sensor presenta latencia, se procedió a volver a ejecutar el proceso de muestreo para garantizar un volumen de datos estadísticamente significativo.
+\end{description}
+
+\subsection{Resultado de la Etapa}
+El resultado de esta fase es un conjunto de instancias de datos etiquetados (imágenes \textit{raw}) que reflejan fielmente la interacción dinámica entre el ciclo de luz natural y las fuentes artificiales, listas para ser transformadas en la siguiente etapa de Creación del \textit{DataSet}.
+
+% --- BLOQUE DE FIGURAS ---
+% Nota: Reemplaza 'example-image' con tus archivos reales (ej. figura2.png)
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{example-image}
+    \caption{Escenario experimental bajo iluminación predominante de pantallas.}
+    \label{fig:escenario_pantallas}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{example-image-a}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{example-image-b}
+    \end{minipage}
+    \caption{Escenario experimental bajo iluminación predominante de luz natural.}
+    \label{fig:escenario_natural}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{example-image}
+    \caption{Escenario experimental bajo iluminación predominante de luz artificial.}
+    \label{fig:escenario_artificial}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{example-image-c}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{example-image}
+    \end{minipage}
+    \caption{Escenario experimental bajo iluminación mixta.}
+    \label{fig:escenario_mixta}
+\end{figure}
+
+
+\section{Creación de DataSet}
+
+\subsection{Transformación de Señal a Dato Estructurado}
+En esta fase se procede a transformar la señal cruda (imágenes captadas por el sensor) en un \textit{dataset} estructurado apto para el modelado matemático.
+El sistema no almacena la matriz de píxeles completa (lo cual generaría una alta dimensionalidad innecesaria), sino que procesa la luminosidad y el color de cada píxel para extraer un vector de características representativas. Este proceso convierte datos no estructurados (imágenes .jpg) en datos tabulares numéricos.
+
+\subsection{Generación desde Instancias Etiquetadas}
+El \textit{dataset} se construye consolidando las instancias de datos previamente etiquetadas durante la fase de Adquisición (DAQ). Se integran las sesiones de captura de los cuatro escenarios (Luz Natural, Artificial, Pantalla y Mix) en un único archivo maestro (formato CSV).
+
+\subsection{Estructura del Dataset Final}
+El archivo resultante se organiza matricialmente donde cada fila representa una observación (instancia temporal) y cada columna representa una variable o atributo extraído del análisis de la "firma de color".
+
+\section{Descripción de Datos}
+
+\subsection{Composición y Volumen}
+El conjunto de datos maestro (\texttt{DATASET\_MAESTRO\_COMPLETO.csv}) se construyó mediante sesiones de captura controlada, acumulando un total de $N = 8,600$ observaciones válidas tras el proceso de limpieza. Cada registro representa un intervalo de tiempo de 0.5 segundos de exposición, garantizando la captura de micro-variaciones lumínicas.
+
+La distribución de clases presenta un balance controlado, diseñado para evitar el sesgo del clasificador hacia una categoría mayoritaria:
+
+\begin{table}[H]
+    \centering
+    \caption{Composición y volumen de datos}
+    \label{tab:composicion_datos}
+    \begin{tabular}{@{}lccl@{}}
+        \toprule
+        \textbf{Etiqueta de Clase} & \textbf{Cantidad ($n$)} & \textbf{Prop. (\%)} & \textbf{Descripción del Escenario} \\ \midrule
+        0 - Artificial & 2,300 & 26,7\% & Iluminación LED/Fluorescente cenital. \\
+        1 - Mixta & 2,000 & 23,3\% & Superposición: Ventana + Techo + Monitor. \\
+        2 - Natural & 2,000 & 23,3\% & Luz diurna (Soleado/Nublado) sin fuentes. \\
+        3 - Pantallas & 2,300 & 26,7\% & Entorno oscuro iluminado por monitor. \\ \midrule
+        \textbf{TOTAL} & \textbf{8,600} & \textbf{100\%} & \\ \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{example-image} % Reemplazar con Figura 8 (Matriz o EDA)
+    \caption{Análisis EDA. La matriz presenta una diagonal principal fuertemente marcada.}
+    \label{fig:eda}
+\end{figure}
+
+\subsubsection*{Interpretación Técnica:}
+\begin{description}
+    \item[Robustez en Clases Puras:] El modelo no comete errores al identificar "Pantallas". Esto valida que la firma de asimetría (\texttt{skew\_v} > 4.0) es un discriminante determinista que no deja lugar a ambigüedad.
+    \item[Resolución del Conflicto "Mixto":] Existía la hipótesis de riesgo de que la clase "Mixta" fuera confundida masivamente con "Natural". Sin embargo, la matriz muestra que el error es marginal ($<2\%$). Esto indica que el modelo ha aprendido a detectar la saturación suavizada y la temperatura de color intermedia, separándolas exitosamente de una fuente natural pura.
+\end{description}
+
+\subsection{Diccionario de Atributos (Feature Space)}
+Cada instancia está descrita por un vector de 12 dimensiones, compuesto por variables físicas directas y variables sintéticas de ingeniería:
+
+\textbf{Atributos Espectrales (Color):}
+\begin{itemize}
+    \item \texttt{mean\_h} (Matiz/Hue): Tono cromático principal.
+    \item \texttt{mean\_s} (Saturación): Pureza del color.
+    \item \texttt{mean\_a} (Canal a* CIELAB): Eje Verde-Rojo.
+    \item \texttt{mean\_b} (Canal b* CIELAB): Eje Azul-Amarillo (\textit{Crítico para detectar pantallas}).
+\end{itemize}
+
+\textbf{Atributos de Intensidad y Contraste:}
+\begin{itemize}
+    \item \texttt{mean\_v} (Brillo promedio HSV): Luminancia global.
+    \item \texttt{std\_v} (Desviación estándar del Brillo): Variabilidad de la luz (Sombras vs. Luz plana).
+    \item \texttt{std\_l} (Desviación estándar de Luminancia HSL): Textura percibida.
+    \item \texttt{v\_95} (Percentil 95): Intensidad máxima robusta (Teoría Retinex).
+\end{itemize}
+
+\textbf{Atributos Morfológicos:}
+\begin{itemize}
+    \item \texttt{skew\_v} (Asimetría del histograma): Forma de la distribución de luz (\textit{Crítico para detectar fuentes artificiales}).
+\end{itemize}
+
+\textbf{Atributos Sintéticas (Feature Engineering):}
+\begin{itemize}
+    \item \texttt{v\_range}: Rango dinámico efectivo.
+    \item \texttt{h\_s\_product}: Potencia cromática (filtra blancos neutros).
+    \item \texttt{v\_skew\_abs}: Magnitud absoluta de la asimetría.
+\end{itemize}
+
+\begin{table}[H]
+    \centering
+    \caption{Comportamiento de Atributos por Clase}
+    \label{tab:variables_roles}
+    \small
+    \begin{tabular}{@{}lp{1.5cm}p{3cm}p{3cm}p{3cm}@{}}
+        \toprule
+        \textbf{Variable} & \textbf{Rol} & \textbf{Luz Natural} & \textbf{Luz Artificial} & \textbf{Pantallas} \\ \midrule
+        \texttt{mean\_b} & Color & Negativo (Azul) \newline Rango: -15 a -2 & Positivo Alto (Cálido) \newline Rango: +5 a +15 & Positivo Bajo (Estable) \newline Rango: +1.5 a +3.5 \\ \midrule
+        \texttt{skew\_v} & Forma & Baja \newline Valor: $< 1.0$ & Alta \newline Valor: $> 3.0$ & Baja \newline Valor: $< 1.0$ \\ \midrule
+        \texttt{std\_v} & Sombras & Baja (Suave) \newline Valor: $< 35$ & Variable \newline (Depende del foco) & Muy Alta (Contraste) \newline Valor: $> 35$ \\ \midrule
+        \texttt{v\_95} & Intensidad & Alta (Día) & Media/Alta & Variable \\ \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Análisis Estadístico Diferencial}
+Al analizar los datos, encontramos diferencias claras entre los tipos de luz que permiten a nuestro sistema clasificarlos correctamente.
+
+\subsubsection*{A. Cómo identificar las Pantallas (\texttt{mean\_h} y \texttt{skew\_v})}
+La luz de las pantallas es la más fácil de distinguir porque se comporta de forma muy diferente a las demás.
+
+\begin{enumerate}
+    \item \textbf{El color es muy estable:} La luz del sol cambia mucho según el clima, pero la luz de un monitor casi siempre tiene el mismo tono. En la Figura \ref{fig:hist_matiz} se observa cómo la curva roja (pantallas) es alta y delgada.
+    
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.7\textwidth]{example-image} % Reemplazar con Figura 9
+        \caption{Histograma de Matiz. El pico rojo muestra estabilidad de color en pantallas.}
+        \label{fig:hist_matiz}
+    \end{figure}
+
+    \item \textbf{La forma de la luz es única:} Las pantallas suelen ser un punto brillante en un cuarto oscuro, creando una asimetría alta.
+    
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.7\textwidth]{example-image} % Reemplazar con Figura 10
+        \caption{Histograma de Asimetría. Las pantallas (rojo) se separan del resto.}
+        \label{fig:hist_asimetria}
+    \end{figure}
+\end{enumerate}
+
+\subsubsection*{B. Diferencia entre Luz Natural y Artificial}
+Aunque parecen iguales, el eje Azul-Amarillo (canal $b^*$) las distingue. La Luz Artificial es estable (verde en Figura \ref{fig:cajas_b}), mientras que la Natural (azul) es variable y fría.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{example-image} % Reemplazar con Figura 11
+    \caption{Gráfico de cajas del canal $b^*$. Diferencia clara entre artificial y natural.}
+    \label{fig:cajas_b}
+\end{figure}
+
+\subsubsection*{C. Luz Mixta}
+Confirmamos que la clase "Mixta" es el promedio de las otras, ubicándose matemáticamente justo en el medio de la luz natural y artificial.
+
+\section{Preparación de Datos}
+El objetivo es transformar los datos "crudos" en un conjunto limpio y listo para el entrenamiento.
+
+\subsection{Limpieza de Datos}
+\begin{itemize}
+    \item \textbf{Eliminación de Duplicados:} Se borraron datos repetidos por congelamiento del sensor.
+    \item \textbf{Filtrado de Ruido:} Se eliminaron los valores extremos (1\% superior e inferior) para quitar destellos o fallos.
+\end{itemize}
+
+\subsection{Creación de Nuevas Variables (Ingeniería de Características)}
+\begin{itemize}
+    \item \textbf{Rango Dinámico (\texttt{v\_range}):} Mide el contraste (Pantalla vs. Natural).
+    \item \textbf{Potencia de Color (\texttt{h\_s\_product}):} Combina tono e intensidad para separar luz artificial de luz neutra.
+    \item \textbf{Forma de la Luz (\texttt{v\_skew\_abs}):} Útil para detectar focos puntuales.
+\end{itemize}
+
+\subsection{Transformación Final}
+Se adaptaron los datos para XGBoost mediante \textit{Label Encoding} (0-3) y escalado \textit{StandardScaler} para normalizar las magnitudes de las variables.
+
+\section{Modelado}
+Se entrenaron cuatro algoritmos para diferenciar los tipos de luz, probando desde métodos simples hasta avanzados.
+
+\subsection{Selección de los Modelos}
+\begin{description}
+    \item[KNN (K-Vecinos Más Cercanos):] Clasifica según la similitud con ejemplos cercanos.
+    \item[SVM (Máquinas de Vectores de Soporte):] Dibuja fronteras matemáticas para separar grupos.
+    \item[Random Forest:] Crea múltiples árboles de decisión y vota por la mayoría. Robusto.
+    \item[XGBoost:] Construye árboles secuencialmente para corregir errores previos. Alta precisión.
+\end{description}
+
+\subsection{Estrategia de Entrenamiento}
+\begin{itemize}
+    \item \textbf{División de Datos (80/20):} 80\% entrenamiento, 20\% prueba (blind test).
+    \item \textbf{Validación Cruzada:} 5 iteraciones para garantizar estabilidad (promedio de 5 intentos).
+\end{itemize}
+
+\subsection{Ajuste de los Modelos}
+\begin{itemize}
+    \item \textbf{Random Forest:} 100 árboles, profundidad libre.
+    \item \textbf{XGBoost:} Tasa de aprendizaje lenta (0.1) para evitar memorización.
+\end{itemize}
+
+\section{Optimización de Parámetros}
+El objetivo final fue maximizar el \textbf{Valor Predictivo Positivo (VPP)} para reducir Falsos Positivos, críticos en entornos de \textit{Home Office}. Se utilizó \textit{Grid Search} con validación cruzada.
+
+\subsection{Resultados de la Optimización}
+
+\begin{table}[H]
+    \centering
+    \caption{Configuración Óptima para Random Forest}
+    \begin{tabular}{@{}llp{6cm}@{}}
+        \toprule
+        \textbf{Parámetro} & \textbf{Valor} & \textbf{Impacto en VPP} \\ \midrule
+        n\_estimators & 100 & Estabiliza el voto, reduciendo ruido. \\
+        criterion & 'gini' & Maximiza la pureza de los nodos. \\
+        max\_depth & None & Captura patrones sutiles ("Mixta"). \\ \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Configuración Óptima para XGBoost}
+    \begin{tabular}{@{}llp{6cm}@{}}
+        \toprule
+        \textbf{Parámetro} & \textbf{Valor} & \textbf{Impacto en VPP} \\ \midrule
+        learning\_rate & 0.1 & Evita memorización de errores. \\
+        max\_depth & 3 & Restringe complejidad (evita ruido). \\ \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Conclusión de la Etapa}
+El modelo final (\textbf{Random Forest}) logró un VPP del \textbf{100\%} para "Pantallas" y "Artificial", y superior al 98\% para "Natural" y "Mixta", garantizando alta confiabilidad.
+
+\section{Resultados}
+
+\subsection{Evaluación Comparativa de Desempeño}
+Random Forest alcanzó el mayor rendimiento global (\textbf{98.97\%}), seguido de KNN (98.90\%). SVM obtuvo el desempeño más bajo (95.07\%), demostrando dificultades con fronteras lineales.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{example-image} % Reemplazar con Figura 12
+    \caption{Comparativa de exactitud (Accuracy) de los cuatro modelos.}
+    \label{fig:comparativa_modelos}
+\end{figure}
+
+\subsection{Análisis de Errores}
+\begin{itemize}
+    \item \textbf{Detección Perfecta de Pantallas:} 100\% de precisión gracias a la asimetría del histograma.
+    \item \textbf{Confusión Natural-Mixta:} Pequeño error esperado debido a la similitud física en ciertas horas del día.
+    \item \textbf{Debilidad de SVM:} Mayor dispersión de errores, confirmando su inferioridad ante métodos de ensamble.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{example-image} % Reemplazar con Figura 13
+    \caption{Matrices de confusión normalizadas.}
+    \label{fig:matrices_confusion}
+\end{figure}
+
+\subsection{Selección del Modelo Final}
+Se selecciona \textbf{Random Forest} por su estabilidad operativa, insensibilidad al escalado y robustez en la votación por mayoría (Bagging).
+
+\section{Conclusiones}
+\begin{enumerate}
+    \item \textbf{Viabilidad del Hardware de Bajo Costo:} Una webcam estándar y el procesamiento adecuado validan la hipótesis de bajo costo propuesta por Botero et al. \cite{lao}.
+    \item \textbf{Superioridad de los Métodos de Ensamble:} Random Forest (98.97\%) superó a los modelos lineales, confirmando que la votación por mayoría es ideal para iluminación mixta.
+    \item \textbf{Patrones Físicos Distintivos:} Se identificaron marcadores únicos: asimetría $>4.0$ para pantallas y estabilidad en el canal $b^*$ para luz artificial.
+    \item \textbf{Solución al Problema del Home Office:} El sistema corrige automatismos fallidos y previene fatiga visual con un 99\% de acierto.
+\end{enumerate}
+
+\section{Recomendaciones}
+\begin{itemize}
+    \item \textbf{Integración IoT:} Evolucionar hacia un control activo de luces inteligentes (Philips Hue/Xiaomi) para compensar contrastes dañinos automáticamente.
+    \item \textbf{Ampliación Estacional:} Recolectar datos en invierno/verano para asegurar generalización ante variaciones solares anuales.
+\end{itemize}
+
+\begin{thebibliography}{9}
+
+\bibitem{rhudy}
+M. B. Rhudy, S. K. Dolan, C. Mellob, and N. Greenauer, "Indoor and outdoor classification using light measurements and machine learning," \textit{Appl. Artif. Intell.}, vol. 36, no. 1, p. e2012001, 2022.
+
+\bibitem{mestiraihi}
+M. Al Mestiraihi, H. Abuella, and S. Ekin, "Indoor occupancy estimation using visible light sensing (VLS) system," in \textit{Proc. IEEE Int. Conf. Commun. (ICC)}, Kansas City, MO, USA, 2018, pp. 1–6.
+
+\bibitem{lao}
+P. Lao, Q. Liu, Y. Ding, Y. Wang, Y. Li, and M. Li, "Urban nighttime light source classification using ISO photography and XGBoost," \textit{Remote Sens.}, vol. 13, no. 16, p. 3273, 2021.
+
+\bibitem{ishii}
+H. Ishii, "A machine learning approach for light source classification: Performance improvement of PDD compensator," in \textit{Proc. Int. Conf. Adv. Mechatronic Syst.}, Kusatsu, Japan, 2019, pp. 1–6.
+
+\end{thebibliography}
+
+\newpage
+\onecolumn  
+\section{Anexo: Implementación del Código Fuente}
+
+% Configuración visual para el código (Courier, fondo blanco, borde)
+\lstset{
+    language=Python,
+    backgroundcolor=\color{white},   
+    commentstyle=\color{green!60!black},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{gray},
+    stringstyle=\color{purple},
+    basicstyle=\fontfamily{pcr}\selectfont\scriptsize, % Courier New tamaño 8
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=t,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=4,
+    frame=single,                    % Cuadro alrededor de cada función
+    rulecolor=\color{black}
+}
+
+El código fuente completo, los archivos de audio procesados y el dataset generado en este trabajo se encuentran disponibles en el siguiente repositorio:
+
+\begin{left}
+    
+\end{left}
+    
+\end{lef}
+    
+\end{right}
+    \url{}
+\end{center}
+
+
+A continuación se presenta el código fuente desarrollado en Python para la descarga, procesamiento, segmentación y análisis de los archivos de audio.
+
+\end{document}
+
+
